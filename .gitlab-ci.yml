@@ -1,0 +1,80 @@
+stages:
+  - detect_env
+  - tf_validate
+  - tf_plan
+  - tf_apply
+
+default:
+  tags:
+    - aws
+    - docker
+
+variables:
+  AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+  AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+#  CUSTOM_AMI: "ami-04f26fee31dda2600"
+  DESIRED_CAPACITY: 1
+
+detect_env:
+  stage: detect_env
+  image:
+    name: hashicorp/terraform
+    entrypoint: [ "" ]
+  script:
+    - |
+      chmod +x $CI_PROJECT_DIR/scripts/detect_env.sh
+      $CI_PROJECT_DIR/scripts/detect_env.sh
+  artifacts:
+    paths:
+      - $CI_PROJECT_DIR/env_info/*
+
+tf_validate:
+  stage: tf_validate
+  image:
+    name: hashicorp/terraform
+    entrypoint: [""]
+  script:
+    - echo "[INFO] Terraform validate"
+
+tf_plan:
+  stage: tf_plan
+  image:
+    name: hashicorp/terraform
+    entrypoint: [ "" ]
+  script:
+    - |
+      chmod +x $CI_PROJECT_DIR/scripts/tf_plan.sh
+      $CI_PROJECT_DIR/scripts/tf_plan.sh
+  artifacts:
+    paths:
+      - $CI_PROJECT_DIR/tfplan # Archive the JAR file for later use
+  dependencies:
+    - detect_env
+
+tf_apply:
+  stage: tf_apply
+  image:
+    name: hashicorp/terraform
+    entrypoint: [ "" ]
+  script:
+    - terraform init
+    - terraform apply --auto-approve tfplan
+  when: manual
+  needs:
+    - tf_plan
+
+split_route:
+  stage: reroute
+  variables:
+    TF_VAR_traffic_distribution: "split"
+  image:
+    name: hashicorp/terraform
+    entrypoint: [ "" ]
+  script:
+    - |
+      chmod +x $CI_PROJECT_DIR/scripts/reroute.sh
+      $CI_PROJECT_DIR/scripts/reroute.sh
+  needs:
+    - detect_env
+    - tf_apply
+  when: manual
