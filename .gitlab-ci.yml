@@ -3,6 +3,8 @@ stages:
   - tf_validate
   - tf_plan
   - tf_apply
+  - reroute
+  - retire
 
 default:
   tags:
@@ -77,4 +79,31 @@ split_route:
   needs:
     - detect_env
     - tf_apply
+  when: manual
+reroute:
+  stage: reroute
+  image:
+    name: hashicorp/terraform
+    entrypoint: [ "" ]
+  script:
+    - |
+      chmod +x $CI_PROJECT_DIR/scripts/reroute.sh
+      $CI_PROJECT_DIR/scripts/reroute.sh
+  when: manual
+  needs:
+    - tf_apply
+    - detect_env
+
+retire:
+  stage: retire
+  image:
+    name: hashicorp/terraform
+    entrypoint: [ "" ]
+  script:
+    - |
+      chmod +x $CI_PROJECT_DIR/scripts/retire.sh
+      $CI_PROJECT_DIR/scripts/retire.sh
+  needs:
+    - reroute
+    - detect_env
   when: manual
